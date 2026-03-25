@@ -83,26 +83,30 @@ class CronViewModel(
                 val jobs = jobsArray.mapNotNull { element ->
                     try {
                         val obj = element.jsonObject
+                        // schedule es un JsonObject: {kind, expr/everyMs, tz}
+                        val scheduleObj = obj["schedule"]?.jsonObject
+                        val scheduleText = when (scheduleObj?.get("kind")?.jsonPrimitive?.content) {
+                            "cron" -> scheduleObj["expr"]?.jsonPrimitive?.content ?: "cron"
+                            "every" -> {
+                                val ms = scheduleObj["everyMs"]?.jsonPrimitive?.longOrNull ?: 0
+                                formatInterval(ms)
+                            }
+                            else -> scheduleObj?.toString()?.take(30) ?: "?"
+                        }
+                        // state está dentro de un sub-objeto "state"
+                        val stateObj = obj["state"]?.jsonObject
                         CronJob(
                             id = obj["id"]?.jsonPrimitive?.content ?: return@mapNotNull null,
-                            agentId = obj["agentId"]?.jsonPrimitive?.content
-                                ?: obj["agent_id"]?.jsonPrimitive?.content
-                                ?: obj["agent"]?.jsonPrimitive?.content
-                                ?: "",
+                            agentId = obj["agentId"]?.jsonPrimitive?.content ?: "",
                             label = obj["label"]?.jsonPrimitive?.content
                                 ?: obj["name"]?.jsonPrimitive?.content
                                 ?: "",
-                            schedule = obj["schedule"]?.jsonPrimitive?.content
-                                ?: obj["cron"]?.jsonPrimitive?.content
-                                ?: obj["interval"]?.jsonPrimitive?.content
-                                ?: "?",
+                            schedule = scheduleText,
                             enabled = obj["enabled"]?.jsonPrimitive?.booleanOrNull ?: true,
-                            lastRunAt = obj["lastRunAt"]?.jsonPrimitive?.longOrNull
-                                ?: obj["last_run_at"]?.jsonPrimitive?.longOrNull,
-                            lastStatus = obj["lastStatus"]?.jsonPrimitive?.content
-                                ?: obj["last_status"]?.jsonPrimitive?.content,
-                            nextRunAt = obj["nextRunAt"]?.jsonPrimitive?.longOrNull
-                                ?: obj["next_run_at"]?.jsonPrimitive?.longOrNull
+                            lastRunAt = stateObj?.get("lastRunAtMs")?.jsonPrimitive?.longOrNull,
+                            lastStatus = stateObj?.get("lastStatus")?.jsonPrimitive?.content
+                                ?: stateObj?.get("lastRunStatus")?.jsonPrimitive?.content,
+                            nextRunAt = stateObj?.get("nextRunAtMs")?.jsonPrimitive?.longOrNull
                         )
                     } catch (e: Exception) {
                         Log.w(TAG, "Error parseando cron job: ${e.message}, element: $element")
@@ -119,6 +123,18 @@ class CronViewModel(
                     error = e.message ?: "Error desconocido"
                 )
             }
+        }
+    }
+
+    /** Formatea milisegundos en intervalo legible */
+    private fun formatInterval(ms: Long): String {
+        val seconds = ms / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        return when {
+            hours > 0 -> "cada ${hours}h"
+            minutes > 0 -> "cada ${minutes}m"
+            else -> "cada ${seconds}s"
         }
     }
 
