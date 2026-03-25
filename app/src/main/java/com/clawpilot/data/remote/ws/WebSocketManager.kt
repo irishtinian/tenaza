@@ -68,11 +68,13 @@ class WebSocketManager(
 
         val safeUrl = enforceTls(url)
         val fullUrl = if (token.isNotEmpty()) "$safeUrl?token=$token" else safeUrl
+        Log.w(TAG, "connect(): url=$fullUrl")
         val request = Request.Builder()
             .url(fullUrl)
             .build()
 
         webSocket = okHttpClient.newWebSocket(request, webSocketListener)
+        Log.w(TAG, "connect(): WebSocket created, waiting for callback...")
     }
 
     /**
@@ -102,7 +104,7 @@ class WebSocketManager(
     private val webSocketListener = object : WebSocketListener() {
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
-            Log.d(TAG, "Conexión establecida")
+            Log.w(TAG, "Conexión establecida")
             _connectionState.value = ConnectionState.Connected
             reconnectAttempt = 0
         }
@@ -121,7 +123,7 @@ class WebSocketManager(
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            Log.d(TAG, "WebSocket cerrado: code=$code reason=$reason")
+            Log.w(TAG, "WebSocket cerrado: code=$code reason=$reason")
             if (userDisconnected) {
                 _connectionState.value = ConnectionState.Disconnected
             } else {
@@ -130,7 +132,7 @@ class WebSocketManager(
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            Log.e(TAG, "Fallo WebSocket: ${t.message}")
+            Log.w(TAG, "Fallo WebSocket: ${t.message}")
             _connectionState.value = ConnectionState.Error(t.message ?: "Error desconocido")
             if (!userDisconnected) {
                 scheduleReconnect()
@@ -147,7 +149,7 @@ class WebSocketManager(
         val delayMs = ReconnectPolicy.delayFor(reconnectAttempt)
         _connectionState.value = ConnectionState.Reconnecting(reconnectAttempt, delayMs)
 
-        Log.d(TAG, "Reconexión en ${delayMs}ms (intento $reconnectAttempt)")
+        Log.w(TAG, "Reconexión en ${delayMs}ms (intento $reconnectAttempt)")
 
         reconnectJob = scope.launch {
             delay(delayMs)

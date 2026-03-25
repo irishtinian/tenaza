@@ -1,6 +1,7 @@
 package com.clawpilot.ui.pairing
 
 import android.os.Build
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clawpilot.data.local.crypto.KeyStoreManager
@@ -87,8 +88,10 @@ class PairingViewModel(
 
     private suspend fun directConnect(wsUrl: String) {
         try {
+            Log.w("PairingVM", "directConnect: attempting $wsUrl")
             // Conectar al gateway
             connectionRepository.connectForPairing(wsUrl, "")
+            Log.w("PairingVM", "directConnect: connectForPairing called, waiting for state...")
 
             // Esperar Connected o Error (15s timeout)
             val connState = withTimeout(15_000L) {
@@ -96,6 +99,7 @@ class PairingViewModel(
                     .filter { it is ConnectionState.Connected || it is ConnectionState.Error }
                     .first()
             }
+            Log.w("PairingVM", "directConnect: got state=$connState")
             if (connState is ConnectionState.Error) {
                 throw Exception("Connection failed: ${connState.reason}")
             }
@@ -111,9 +115,11 @@ class PairingViewModel(
             credentialStore.storeCredentials(credentials)
             _state.value = PairingState.Paired(credentials)
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            Log.w("PairingVM", "directConnect: TIMEOUT")
             connectionRepository.disconnect()
             _state.value = PairingState.Error("Connection timed out. Check the gateway URL and try again.")
         } catch (e: Exception) {
+            Log.w("PairingVM", "directConnect: ERROR ${e.message}", e)
             connectionRepository.disconnect()
             _state.value = PairingState.Error(e.message ?: "Connection failed")
         }
