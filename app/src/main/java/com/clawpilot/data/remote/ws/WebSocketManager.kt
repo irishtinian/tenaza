@@ -87,7 +87,8 @@ class WebSocketManager(
 
     fun send(frame: RequestFrame): Boolean {
         val text = json.encodeToString(frame)
-        Log.w(TAG, "send(): ${text.take(300)}")
+        // No loguear el contenido completo — puede contener tokens
+        Log.w(TAG, "send(): method=${frame.method} id=${frame.id}")
         return webSocket?.send(text) ?: false
     }
 
