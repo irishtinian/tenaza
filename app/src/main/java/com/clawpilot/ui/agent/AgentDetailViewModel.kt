@@ -105,6 +105,7 @@ class AgentDetailViewModel(
                 )
                 if (response.ok) {
                     val content = response.payload?.jsonObject
+                        ?.get("file")?.jsonObject
                         ?.get("content")?.jsonPrimitive?.content ?: ""
                     val fileName = path.substringAfterLast("/")
                     _fileContent.value = Pair(fileName, content)
@@ -199,10 +200,10 @@ class AgentDetailViewModel(
 
             val fileList = filesArray.map { element ->
                 val obj = element.jsonObject
-                val path = obj["path"]?.jsonPrimitive?.content ?: ""
+                val name = obj["name"]?.jsonPrimitive?.content ?: ""
                 AgentFile(
-                    path = path,
-                    name = path.substringAfterLast("/"),
+                    path = name, // Usar name como path para files.get
+                    name = name,
                     size = obj["size"]?.jsonPrimitive?.longOrNull
                 )
             }.sortedWith(
