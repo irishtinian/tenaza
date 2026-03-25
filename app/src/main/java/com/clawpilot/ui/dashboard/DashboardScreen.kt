@@ -1,5 +1,6 @@
 package com.clawpilot.ui.dashboard
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    onAgentTap: (agentId: String, agentName: String) -> Unit = { _, _ -> },
     viewModel: DashboardViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -101,7 +103,10 @@ fun DashboardScreen(
                         SectionTitle("Agentes (${state.agents.size})")
                     }
                     items(state.agents, key = { it.id }) { agent ->
-                        AgentCard(agent)
+                        AgentCard(
+                            agent = agent,
+                            onClick = { onAgentTap(agent.id, agent.displayName) }
+                        )
                     }
                 }
 
@@ -258,9 +263,11 @@ private fun CronSummaryCard(count: Int) {
 }
 
 @Composable
-private fun AgentCard(agent: AgentInfo) {
+private fun AgentCard(agent: AgentInfo, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )

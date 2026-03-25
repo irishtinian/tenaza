@@ -32,6 +32,7 @@ import com.clawpilot.ui.connection.ConnectionStatusBar
 import com.clawpilot.ui.connection.ConnectionViewModel
 import com.clawpilot.ui.chat.ChatScreen
 import com.clawpilot.ui.crons.CronsScreen
+import com.clawpilot.ui.agent.AgentDetailScreen
 import com.clawpilot.ui.dashboard.DashboardScreen
 import com.clawpilot.ui.navigation.AppRoute
 import com.clawpilot.ui.settings.SettingsScreen
@@ -123,7 +124,21 @@ fun MainShell(connectionViewModel: ConnectionViewModel) {
                         ChatScreen()
                     }
                     AppRoute.Dashboard -> NavEntry(route) {
-                        DashboardScreen()
+                        DashboardScreen(
+                            onAgentTap = { agentId, agentName ->
+                                dashboardBackstack.add(
+                                    AppRoute.AgentDetail(agentId, agentName)
+                                )
+                            }
+                        )
+                    }
+                    is AppRoute.AgentDetail -> NavEntry(route) {
+                        val detail = route as AppRoute.AgentDetail
+                        AgentDetailScreen(
+                            agentId = detail.agentId,
+                            agentName = detail.agentName,
+                            onBack = { dashboardBackstack.removeLastOrNull() }
+                        )
                     }
                     AppRoute.Crons -> NavEntry(route) {
                         CronsScreen()
