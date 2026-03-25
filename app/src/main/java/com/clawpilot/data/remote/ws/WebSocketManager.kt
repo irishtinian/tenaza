@@ -67,8 +67,9 @@ class WebSocketManager(
         _connectionState.value = ConnectionState.Connecting
 
         val safeUrl = enforceTls(url)
+        val fullUrl = if (token.isNotEmpty()) "$safeUrl?token=$token" else safeUrl
         val request = Request.Builder()
-            .url("$safeUrl?token=$token")
+            .url(fullUrl)
             .build()
 
         webSocket = okHttpClient.newWebSocket(request, webSocketListener)

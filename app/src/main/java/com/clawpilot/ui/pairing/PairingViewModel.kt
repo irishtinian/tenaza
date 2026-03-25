@@ -75,7 +75,7 @@ class PairingViewModel(
         _state.value = PairingState.Connecting(trimmed)
         val wsUrl = trimmed.replace("https://", "wss://").replace("http://", "ws://")
         viewModelScope.launch {
-            initiatePairing(wsUrl, "")
+            directConnect(wsUrl)
         }
     }
 
@@ -83,7 +83,43 @@ class PairingViewModel(
         _state.value = PairingState.Unpaired
     }
 
-    // --- Pairing handshake ---
+    // --- Conexión directa (manual URL, sin QR pairing handshake) ---
+
+    private suspend fun directConnect(wsUrl: String) {
+        try {
+            // Conectar al gateway
+            connectionRepository.connectForPairing(wsUrl, "")
+
+            // Esperar Connected o Error (15s timeout)
+            val connState = withTimeout(15_000L) {
+                connectionRepository.connectionState
+                    .filter { it is ConnectionState.Connected || it is ConnectionState.Error }
+                    .first()
+            }
+            if (connState is ConnectionState.Error) {
+                throw Exception("Connection failed: ${connState.reason}")
+            }
+
+            // Conexión exitosa — almacenar credenciales para auto-connect
+            val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+            val credentials = GatewayCredentials(
+                gatewayUrl = wsUrl,
+                token = "", // El gateway no requiere token en modo directo
+                deviceName = deviceName,
+                scopes = emptyList()
+            )
+            credentialStore.storeCredentials(credentials)
+            _state.value = PairingState.Paired(credentials)
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            connectionRepository.disconnect()
+            _state.value = PairingState.Error("Connection timed out. Check the gateway URL and try again.")
+        } catch (e: Exception) {
+            connectionRepository.disconnect()
+            _state.value = PairingState.Error(e.message ?: "Connection failed")
+        }
+    }
+
+    // --- Pairing handshake (via QR) ---
 
     private suspend fun initiatePairing(wsUrl: String, pairingToken: String) {
         try {
