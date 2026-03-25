@@ -297,6 +297,7 @@ class WebSocketManager(
             parts[0] == 10 -> true
             parts[0] == 192 && parts[1] == 168 -> true
             parts[0] == 172 && parts[1] in 16..31 -> true
+            parts[0] == 100 && parts[1] in 64..127 -> true // Tailscale CGNAT
             else -> false
         }
     }

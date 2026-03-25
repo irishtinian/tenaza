@@ -89,7 +89,69 @@ Tenaza is a native Android app for remotely controlling [OpenClaw](https://githu
 5. The app authenticates using an Ed25519 device identity generated on first launch.
 6. Your Dashboard loads with agents, health status, cron jobs, and costs.
 
-> **Tip:** For remote access outside your LAN, expose your gateway via Tailscale, Cloudflare Tunnel, or a VPS with TLS.
+---
+
+## Remote Access
+
+By default, your OpenClaw gateway listens on `localhost`. To control your agents from outside your home network (mobile data, other WiFi, etc.), you need to expose your gateway. Here are your options, from easiest to most advanced:
+
+### Option 1: Tailscale (Recommended)
+
+Free, zero-config VPN mesh. Works from anywhere with no ports to open.
+
+1. Install [Tailscale](https://tailscale.com) on your PC and phone.
+2. Both devices get a stable IP (e.g., `100.x.y.z`).
+3. Set your gateway to listen on LAN: in `openclaw.json`, set `gateway.bind` to `"lan"`.
+4. In Tenaza, pair with `ws://100.x.y.z:18789`.
+
+**Pros:** Free, encrypted, works behind any NAT, no domain needed.
+**Cons:** Tailscale must be installed on every device.
+
+### Option 2: Cloudflare Tunnel
+
+Free (requires a domain on Cloudflare). Gives you a public HTTPS URL.
+
+1. Install [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) on your PC.
+2. Create a tunnel: `cloudflared tunnel create openclaw`
+3. Route it to your gateway: `cloudflared tunnel route dns openclaw gateway.yourdomain.com`
+4. Run: `cloudflared tunnel --url http://localhost:18789 run openclaw`
+5. In Tenaza, pair with `wss://gateway.yourdomain.com`.
+
+**Pros:** Public URL, automatic TLS, no ports to open, works from any device.
+**Cons:** Requires a domain managed by Cloudflare.
+
+### Option 3: Reverse Proxy on a VPS
+
+Full control. Requires a VPS ($3-5/month) and basic sysadmin knowledge.
+
+1. Set up a VPS (e.g., Hetzner, DigitalOcean).
+2. Install Nginx/Caddy with a TLS certificate.
+3. Create an SSH tunnel from your PC: `ssh -R 18789:localhost:18789 user@your-vps`
+4. Configure the reverse proxy to forward WebSocket traffic.
+5. In Tenaza, pair with `wss://your-vps-domain:443`.
+
+**Pros:** Full control, no third-party dependencies.
+**Cons:** Costs money, requires maintenance.
+
+### Option 4: Port Forwarding (Not Recommended)
+
+Exposes your gateway directly to the internet. Only use this if you understand the security implications.
+
+1. Forward port 18789 on your router to your PC's local IP.
+2. Use a dynamic DNS service if you don't have a static IP.
+3. In Tenaza, pair with `ws://your-public-ip:18789`.
+
+**Pros:** No extra software.
+**Cons:** Security risk, requires static IP or DDNS, may not work behind CGNAT.
+
+### Connection Summary
+
+| Method | Cost | Difficulty | Security | Works behind CGNAT |
+|--------|------|-----------|----------|-------------------|
+| **Tailscale** | Free | Easy | Encrypted tunnel | Yes |
+| **Cloudflare Tunnel** | Free | Medium | TLS + Cloudflare edge | Yes |
+| **VPS Proxy** | ~$5/mo | Advanced | TLS (self-managed) | Yes |
+| **Port Forward** | Free | Medium | None (unless you add TLS) | No |
 
 ---
 
