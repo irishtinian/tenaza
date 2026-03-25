@@ -5,6 +5,7 @@ import com.clawpilot.data.local.crypto.KeyStoreManager
 import com.clawpilot.data.local.prefs.AppPreferences
 import com.clawpilot.data.local.prefs.CredentialStore
 import com.clawpilot.ui.connection.ConnectionViewModel
+import com.clawpilot.ui.dashboard.DashboardViewModel
 import com.clawpilot.ui.pairing.PairingViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
@@ -17,4 +18,5 @@ val appModule = module {
     single { Ed25519KeyManager(androidContext()) }
     viewModelOf(::PairingViewModel)
     viewModelOf(::ConnectionViewModel)
+    viewModelOf(::DashboardViewModel)
 }

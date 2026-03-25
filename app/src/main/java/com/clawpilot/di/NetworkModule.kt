@@ -1,5 +1,6 @@
 package com.clawpilot.di
 
+import com.clawpilot.data.remote.GatewayRpcClient
 import com.clawpilot.data.remote.ws.WebSocketManager
 import com.clawpilot.data.repository.ConnectionRepository
 import kotlinx.coroutines.CoroutineScope
@@ -31,5 +32,9 @@ val networkModule = module {
             credentialStore = get(),
             ed25519KeyManager = get()
         )
+    }
+
+    single {
+        GatewayRpcClient(connectionRepository = get())
     }
 }
