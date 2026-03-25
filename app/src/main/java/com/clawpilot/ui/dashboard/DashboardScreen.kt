@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Card
@@ -95,6 +96,11 @@ fun DashboardScreen(
                 // Resumen crons
                 if (state.cronCount > 0) {
                     item { CronSummaryCard(state.cronCount) }
+                }
+
+                // Costos / tokens
+                state.costSummary?.let { costs ->
+                    item { CostSummaryCard(costs) }
                 }
 
                 // Agentes
@@ -323,6 +329,99 @@ private fun AgentCard(agent: AgentInfo, onClick: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CostSummaryCard(costs: CostSummary) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MonetizationOn,
+                    contentDescription = "Costos",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Costos",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Text(
+                    text = formatCostUsd(costs.totalCostUsd),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            Text(
+                text = formatTokens(costs.totalTokens),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 36.dp)
+            )
+
+            // Top 3 agentes por costo
+            val topAgents = costs.perAgent.take(3)
+            if (topAgents.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                topAgents.forEach { agent ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 36.dp, top = 2.dp, bottom = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = agent.agentName,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = formatCostUsd(agent.costUsd),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Formatea un monto en USD (ej. "$12.45") */
+private fun formatCostUsd(usd: Double): String {
+    return "$${String.format("%.2f", usd)}"
+}
+
+/** Formatea tokens de forma legible (ej. "1.2M tokens", "450K tokens") */
+private fun formatTokens(tokens: Long): String {
+    return when {
+        tokens >= 1_000_000 -> String.format("%.1fM tokens", tokens / 1_000_000.0)
+        tokens >= 1_000 -> String.format("%.1fK tokens", tokens / 1_000.0)
+        else -> "$tokens tokens"
     }
 }
 

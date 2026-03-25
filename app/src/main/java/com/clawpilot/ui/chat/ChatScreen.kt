@@ -66,12 +66,23 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun ChatScreen(
     onOpenArena: () -> Unit = {},
+    pendingAgentId: String? = null,
+    pendingAgentName: String? = null,
+    onPendingConsumed: () -> Unit = {},
     viewModel: ChatViewModel = koinViewModel()
 ) {
     val currentAgent by viewModel.currentAgent.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
     val agents by viewModel.agents.collectAsStateWithLifecycle()
+
+    // Si hay un agente pendiente (atajo desde AgentDetail), seleccionarlo automáticamente
+    LaunchedEffect(pendingAgentId) {
+        if (!pendingAgentId.isNullOrBlank() && !pendingAgentName.isNullOrBlank()) {
+            viewModel.selectAgent(pendingAgentId, pendingAgentName)
+            onPendingConsumed()
+        }
+    }
 
     Scaffold(
         topBar = {

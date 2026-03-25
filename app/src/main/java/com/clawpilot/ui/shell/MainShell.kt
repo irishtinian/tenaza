@@ -55,6 +55,10 @@ fun MainShell(connectionViewModel: ConnectionViewModel) {
 
     var selectedTab by remember { mutableStateOf<AppRoute>(AppRoute.Dashboard) }
 
+    // Estado para el atajo "Chat with agent" desde AgentDetail
+    // Par (agentId, agentName), null si no hay pendiente
+    var pendingChatAgent by remember { mutableStateOf<Pair<String, String>?>(null) }
+
     val chatBackstack = rememberNavBackStack(AppRoute.Chat)
     val dashboardBackstack = rememberNavBackStack(AppRoute.Dashboard)
     val cronsBackstack = rememberNavBackStack(AppRoute.Crons)
@@ -122,10 +126,15 @@ fun MainShell(connectionViewModel: ConnectionViewModel) {
             entryProvider = { route ->
                 when (route) {
                     AppRoute.Chat -> NavEntry(route) {
+                        // Consumir agente pendiente si hay uno (atajo desde AgentDetail)
+                        val pending = pendingChatAgent
                         ChatScreen(
                             onOpenArena = {
                                 chatBackstack.add(AppRoute.Arena)
-                            }
+                            },
+                            pendingAgentId = pending?.first,
+                            pendingAgentName = pending?.second,
+                            onPendingConsumed = { pendingChatAgent = null }
                         )
                     }
                     AppRoute.Arena -> NavEntry(route) {
@@ -147,7 +156,13 @@ fun MainShell(connectionViewModel: ConnectionViewModel) {
                         AgentDetailScreen(
                             agentId = detail.agentId,
                             agentName = detail.agentName,
-                            onBack = { dashboardBackstack.removeLastOrNull() }
+                            onBack = { dashboardBackstack.removeLastOrNull() },
+                            onChatWithAgent = { agentId, agentName ->
+                                // Volver al dashboard, guardar agente pendiente y cambiar a Chat
+                                dashboardBackstack.removeLastOrNull()
+                                pendingChatAgent = Pair(agentId, agentName)
+                                selectedTab = AppRoute.Chat
+                            }
                         )
                     }
                     AppRoute.Crons -> NavEntry(route) {

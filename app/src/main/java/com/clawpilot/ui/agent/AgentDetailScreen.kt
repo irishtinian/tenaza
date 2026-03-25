@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FolderOpen
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +42,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +67,7 @@ fun AgentDetailScreen(
     agentId: String,
     agentName: String,
     onBack: () -> Unit,
+    onChatWithAgent: (agentId: String, agentName: String) -> Unit = { _, _ -> },
     viewModel: AgentDetailViewModel = koinViewModel()
 ) {
     val config by viewModel.agentConfig.collectAsStateWithLifecycle()
@@ -122,52 +126,73 @@ fun AgentDetailScreen(
             )
         }
     ) { paddingValues ->
-        if (isLoading && config == null) {
-            // Carga inicial
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item { Spacer(Modifier.height(4.dp)) }
-
-                // Tarjeta de info del agente
-                config?.let { cfg ->
-                    item { AgentInfoCard(cfg) }
+        PullToRefreshBox(
+            isRefreshing = isLoading,
+            onRefresh = { viewModel.loadAgent(agentId) },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            if (isLoading && config == null) {
+                // Carga inicial
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item { Spacer(Modifier.height(4.dp)) }
 
-                // Sección de archivos
-                if (files.isNotEmpty()) {
-                    item { SectionTitle("Archivos del workspace") }
-                    items(files, key = { it.path }) { file ->
-                        FileItem(
-                            file = file,
-                            onClick = { viewModel.viewFile(agentId, file.path) }
-                        )
+                    // Botón para chatear con el agente
+                    item {
+                        Button(
+                            onClick = { onChatWithAgent(agentId, displayName) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Chat,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Chat with $displayName")
+                        }
                     }
-                }
 
-                // Sección de sesiones recientes
-                if (sessions.isNotEmpty()) {
-                    item { SectionTitle("Sesiones recientes") }
-                    items(sessions, key = { it.key }) { session ->
-                        SessionItem(session)
+                    // Tarjeta de info del agente
+                    config?.let { cfg ->
+                        item { AgentInfoCard(cfg) }
                     }
-                }
 
-                // Espacio inferior
-                item { Spacer(Modifier.height(16.dp)) }
+                    // Sección de archivos
+                    if (files.isNotEmpty()) {
+                        item { SectionTitle("Archivos del workspace") }
+                        items(files, key = { it.path }) { file ->
+                            FileItem(
+                                file = file,
+                                onClick = { viewModel.viewFile(agentId, file.path) }
+                            )
+                        }
+                    }
+
+                    // Sección de sesiones recientes
+                    if (sessions.isNotEmpty()) {
+                        item { SectionTitle("Sesiones recientes") }
+                        items(sessions, key = { it.key }) { session ->
+                            SessionItem(session)
+                        }
+                    }
+
+                    // Espacio inferior
+                    item { Spacer(Modifier.height(16.dp)) }
+                }
             }
         }
     }

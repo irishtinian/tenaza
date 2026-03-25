@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -69,6 +72,10 @@ fun SettingsScreen(
     val notificationsEnabled by appPreferences.getNotificationsEnabled()
         .collectAsStateWithLifecycle(initialValue = true)
 
+    // Estado del modo de tema desde DataStore
+    val themeMode by appPreferences.getThemeMode()
+        .collectAsStateWithLifecycle(initialValue = "system")
+
     // Launcher para solicitar permiso POST_NOTIFICATIONS (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -104,6 +111,37 @@ fun SettingsScreen(
                 Spacer(Modifier.width(8.dp))
                 Text(label)
             }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        // Sección tema (Dark / Light / System)
+        item {
+            Text("Theme", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val options = listOf("system" to "System", "light" to "Light", "dark" to "Dark")
+                options.forEach { (value, label) ->
+                    FilterChip(
+                        selected = themeMode == value,
+                        onClick = {
+                            scope.launch { appPreferences.setThemeMode(value) }
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+                }
+            }
+            Text(
+                text = "Choose between system default, light, or dark appearance",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(16.dp))
         }
 

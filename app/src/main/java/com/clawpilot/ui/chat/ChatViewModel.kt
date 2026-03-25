@@ -148,6 +148,8 @@ class ChatViewModel(
                             sessionKey = sessionKey
                         )
                         Log.w(TAG, "Sesión creada: $sessionKey")
+                        // Cargar historial de conversación previo
+                        loadHistory(sessionKey)
                     }
                 } else {
                     Log.w(TAG, "Error creando sesión: ${response.error?.message}")
@@ -233,6 +235,61 @@ class ChatViewModel(
         _isGenerating.value = false
         currentRunId = null
         streamJob?.cancel()
+    }
+
+    /**
+     * Carga el historial de mensajes previos de una sesión.
+     * Parsea la respuesta de chat.history y los agrega a la lista de mensajes.
+     */
+    private suspend fun loadHistory(sessionKey: String) {
+        try {
+            val response = rpcClient.request(
+                "chat.history",
+                buildJsonObject {
+                    put("sessionKey", sessionKey)
+                    put("limit", 50)
+                }
+            )
+            if (!response.ok) {
+                Log.w(TAG, "chat.history failed: ${response.error?.message}")
+                return
+            }
+
+            val payload = response.payload?.jsonObject ?: return
+            val messagesArray = payload["messages"]?.jsonArray ?: return
+
+            val historyMessages = messagesArray.mapNotNull { element ->
+                val msg = element.jsonObject
+                val role = msg["role"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                // Solo mostrar mensajes de usuario y asistente
+                if (role != "user" && role != "assistant") return@mapNotNull null
+
+                // Extraer texto del contenido: content[0].text
+                val text = try {
+                    msg["content"]?.jsonArray
+                        ?.firstOrNull()?.jsonObject
+                        ?.get("text")?.jsonPrimitive?.content
+                } catch (_: Exception) {
+                    null
+                } ?: return@mapNotNull null
+
+                if (text.isBlank()) return@mapNotNull null
+
+                ChatMessage(
+                    id = UUID.randomUUID().toString(),
+                    role = role,
+                    text = text,
+                    isStreaming = false
+                )
+            }
+
+            if (historyMessages.isNotEmpty()) {
+                _messages.value = historyMessages
+                Log.w(TAG, "Historial cargado: ${historyMessages.size} mensajes")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error cargando historial: ${e.message}")
+        }
     }
 
     // --- Helpers ---
