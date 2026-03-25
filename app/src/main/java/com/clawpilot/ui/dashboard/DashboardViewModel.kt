@@ -25,7 +25,8 @@ data class AgentInfo(
     val id: String,
     val displayName: String,
     val emoji: String,
-    val model: String
+    val model: String,
+    val fallbacks: List<String> = emptyList()
 )
 
 data class ChannelInfo(

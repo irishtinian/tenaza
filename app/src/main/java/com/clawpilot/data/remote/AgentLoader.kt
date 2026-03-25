@@ -29,13 +29,19 @@ suspend fun loadAgentsFromGateway(rpcClient: GatewayRpcClient): List<AgentInfo> 
                     ?: obj["id"]?.jsonPrimitive?.content
                     ?: "?"
                 val emoji = obj["emoji"]?.jsonPrimitive?.content ?: ""
-                val model = obj["model"]?.jsonObject
-                    ?.get("primary")?.jsonPrimitive?.content ?: ""
+                val modelObj = obj["model"]?.jsonObject
+                val model = modelObj?.get("primary")?.jsonPrimitive?.content ?: ""
+                val fallbacks = try {
+                    modelObj?.get("fallbacks")?.jsonArray?.map {
+                        it.jsonPrimitive.content.substringAfterLast("/")
+                    } ?: emptyList()
+                } catch (_: Exception) { emptyList() }
                 AgentInfo(
                     id = obj["id"]?.jsonPrimitive?.content ?: "",
                     displayName = name,
                     emoji = emoji,
-                    model = model.substringAfterLast("/")
+                    model = model.substringAfterLast("/"),
+                    fallbacks = fallbacks
                 )
             }
         }
