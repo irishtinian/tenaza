@@ -36,6 +36,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.clawpilot.BuildConfig
+import com.clawpilot.data.local.crypto.Ed25519KeyManager
 import com.clawpilot.data.local.crypto.KeyStoreManager
 import com.clawpilot.data.local.prefs.AppPreferences
 import com.clawpilot.data.local.prefs.CredentialStore
@@ -56,6 +58,7 @@ fun SettingsScreen(
     val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
     val credentialStore: CredentialStore = koinInject()
     val keyStoreManager: KeyStoreManager = koinInject()
+    val ed25519KeyManager: Ed25519KeyManager = koinInject()
     val appPreferences: AppPreferences = koinInject()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -168,7 +171,41 @@ fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
             Text("About", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
-            Text("ClawPilot v0.1.0", style = MaterialTheme.typography.bodyMedium)
+
+            // Versión dinámica desde BuildConfig
+            Text(
+                "ClawPilot v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(4.dp))
+
+            // Device ID (hash de la clave pública Ed25519)
+            val deviceId = remember {
+                if (ed25519KeyManager.hasKeyPair()) {
+                    ed25519KeyManager.getDeviceId().take(16) + "..."
+                } else {
+                    "Not paired"
+                }
+            }
+            Text(
+                "Device ID: $deviceId",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(4.dp))
+
+            // Estado de conexión con info del gateway
+            val gatewayInfo = when (val state = connectionState) {
+                is ConnectionState.Connected -> "Gateway connected"
+                is ConnectionState.Error -> "Error: ${state.reason}"
+                is ConnectionState.Reconnecting -> "Reconnecting (attempt ${state.attempt})"
+                else -> "Not connected"
+            }
+            Text(
+                gatewayInfo,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 

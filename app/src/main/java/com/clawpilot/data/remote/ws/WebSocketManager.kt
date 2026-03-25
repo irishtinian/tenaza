@@ -24,6 +24,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 
 private const val TAG = "WebSocketManager"
+private const val MAX_RECONNECT_ATTEMPTS = 30
 
 /**
  * Gestor de conexión WebSocket con el gateway OpenClaw.
@@ -65,6 +66,7 @@ class WebSocketManager(
         connectParams = params
         userDisconnected = false
         handshakeComplete = false
+        reconnectAttempt = 0 // Reset al conectar manualmente
         _connectionState.value = ConnectionState.Connecting
 
         val safeUrl = enforceTls(params.url)
@@ -230,6 +232,14 @@ class WebSocketManager(
     private fun scheduleReconnect() {
         if (userDisconnected) return
         reconnectAttempt++
+
+        // Límite máximo de intentos de reconexión
+        if (reconnectAttempt > MAX_RECONNECT_ATTEMPTS) {
+            Log.w(TAG, "Máximo de intentos de reconexión alcanzado ($MAX_RECONNECT_ATTEMPTS)")
+            _connectionState.value = ConnectionState.Error("Max reconnect attempts reached")
+            return
+        }
+
         val delayMs = ReconnectPolicy.delayFor(reconnectAttempt)
         _connectionState.value = ConnectionState.Reconnecting(reconnectAttempt, delayMs)
         Log.w(TAG, "Reconexión en ${delayMs}ms (intento $reconnectAttempt)")
@@ -237,7 +247,14 @@ class WebSocketManager(
         reconnectJob = scope.launch {
             delay(delayMs)
             val p = connectParams ?: return@launch
-            connect(p)
+            // No resetear reconnectAttempt aquí — solo en connect() manual
+            userDisconnected = false
+            handshakeComplete = false
+            _connectionState.value = ConnectionState.Connecting
+
+            val safeUrl = enforceTls(p.url)
+            val request = Request.Builder().url(safeUrl).build()
+            webSocket = okHttpClient.newWebSocket(request, webSocketListener)
         }
     }
 
