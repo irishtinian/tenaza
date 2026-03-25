@@ -1,11 +1,17 @@
 package com.clawpilot.di
 
+import com.clawpilot.data.local.crypto.KeyStoreManager
+import com.clawpilot.data.local.prefs.AppPreferences
+import com.clawpilot.data.local.prefs.CredentialStore
+import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 /**
  * Módulo Koin principal.
- * Por ahora vacío — los ViewModels y repositorios se añaden en planes posteriores.
+ * Registra almacenamiento local: CredentialStore (cifrado), AppPreferences, KeyStoreManager.
  */
 val appModule = module {
-    // ViewModels y repositorios se registran en planes 01-02, 02, 03...
+    single { CredentialStore(androidContext()) }
+    single { AppPreferences(androidContext()) }
+    single { KeyStoreManager() }
 }
