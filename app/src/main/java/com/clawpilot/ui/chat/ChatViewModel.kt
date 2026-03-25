@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clawpilot.data.remote.GatewayRpcClient
+import com.clawpilot.data.remote.loadAgentsFromGateway
 import com.clawpilot.data.remote.ws.GatewayFrame
 import com.clawpilot.data.repository.ConnectionRepository
 import com.clawpilot.domain.model.ChatMessage
@@ -60,24 +61,7 @@ class ChatViewModel(
 
     private fun loadAgents() {
         viewModelScope.launch {
-            try {
-                val response = rpcClient.request("agents.list")
-                if (response.ok) {
-                    val arr = response.payload?.jsonObject?.get("agents")?.jsonArray ?: return@launch
-                    _agents.value = arr.map { element ->
-                        val obj = element.jsonObject
-                        AgentInfo(
-                            id = obj["id"]?.jsonPrimitive?.content ?: "",
-                            displayName = obj["name"]?.jsonPrimitive?.content
-                                ?: obj["id"]?.jsonPrimitive?.content ?: "?",
-                            emoji = "",
-                            model = ""
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Error cargando agentes: ${e.message}")
-            }
+            _agents.value = loadAgentsFromGateway(rpcClient)
         }
     }
 

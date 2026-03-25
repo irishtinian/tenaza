@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clawpilot.data.remote.GatewayRpcClient
+import com.clawpilot.data.remote.loadAgentsFromGateway
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -127,48 +128,7 @@ class DashboardViewModel(
 
     private suspend fun fetchAgents() {
         try {
-            // agents.list solo devuelve {id, name}. Usamos config.get para la info completa.
-            val response = rpcClient.request("config.get", buildJsonObject {
-                put("path", "agents.list")
-            })
-            if (!response.ok) {
-                // Fallback a agents.list básico
-                val fallback = rpcClient.request("agents.list")
-                if (fallback.ok) {
-                    val agentsArray = fallback.payload?.jsonObject?.get("agents")?.jsonArray ?: return
-                    val agents = agentsArray.map { element ->
-                        val obj = element.jsonObject
-                        AgentInfo(
-                            id = obj["id"]?.jsonPrimitive?.content ?: "",
-                            displayName = obj["name"]?.jsonPrimitive?.content ?: obj["id"]?.jsonPrimitive?.content ?: "?",
-                            emoji = "",
-                            model = ""
-                        )
-                    }
-                    _uiState.value = _uiState.value.copy(agents = agents)
-                }
-                return
-            }
-
-            val agentsArray = response.payload?.jsonObject?.get("value")?.jsonArray ?: return
-
-            val agents = agentsArray.map { element ->
-                val obj = element.jsonObject
-                val name = obj["name"]?.jsonPrimitive?.content
-                    ?: obj["displayName"]?.jsonPrimitive?.content
-                    ?: obj["id"]?.jsonPrimitive?.content
-                    ?: "?"
-                val emoji = obj["emoji"]?.jsonPrimitive?.content ?: ""
-                val model = obj["model"]?.jsonObject
-                    ?.get("primary")?.jsonPrimitive?.content ?: ""
-                AgentInfo(
-                    id = obj["id"]?.jsonPrimitive?.content ?: "",
-                    displayName = name,
-                    emoji = emoji,
-                    model = model.substringAfterLast("/"), // "anthropic/claude-sonnet-4-6" -> "claude-sonnet-4-6"
-                )
-            }
-
+            val agents = loadAgentsFromGateway(rpcClient)
             _uiState.value = _uiState.value.copy(agents = agents)
         } catch (e: Exception) {
             Log.e(TAG, "fetchAgents error: ${e.message}", e)
