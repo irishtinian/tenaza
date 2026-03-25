@@ -1,5 +1,5 @@
 # =============================================
-# ProGuard / R8 rules para ClawPilot
+# ProGuard / R8 rules para Tenaza
 # =============================================
 
 # --- kotlinx.serialization ---
@@ -13,11 +13,11 @@
 -keepclasseswithmembers class kotlinx.serialization.json.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
--keep,includedescriptorclasses class com.clawpilot.**$$serializer { *; }
--keepclassmembers class com.clawpilot.** {
+-keep,includedescriptorclasses class com.tenaza.**$$serializer { *; }
+-keepclassmembers class com.tenaza.** {
     *** Companion;
 }
--keepclasseswithmembers class com.clawpilot.** {
+-keepclasseswithmembers class com.tenaza.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Tema base para ClawPilot — Compose gestiona el estilo real via MaterialTheme -->
-    <style name="Theme.ClawPilot" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Tema base para Tenaza — Compose gestiona el estilo real via MaterialTheme -->
+    <style name="Theme.Tenaza" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>

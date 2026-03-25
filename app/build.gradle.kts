@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.clawpilot"
+    namespace = "com.tenaza"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.clawpilot"
+        applicationId = "com.tenaza"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

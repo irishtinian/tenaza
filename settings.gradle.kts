@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ClawPilot"
+rootProject.name = "Tenaza"
 include(":app")
