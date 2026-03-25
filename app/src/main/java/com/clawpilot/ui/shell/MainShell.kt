@@ -30,6 +30,7 @@ import com.clawpilot.R
 import com.clawpilot.data.remote.ws.ConnectionState
 import com.clawpilot.ui.connection.ConnectionStatusBar
 import com.clawpilot.ui.connection.ConnectionViewModel
+import com.clawpilot.ui.chat.ChatScreen
 import com.clawpilot.ui.dashboard.DashboardScreen
 import com.clawpilot.ui.navigation.AppRoute
 import com.clawpilot.ui.settings.SettingsScreen
@@ -118,9 +119,7 @@ fun MainShell(connectionViewModel: ConnectionViewModel) {
             entryProvider = { route ->
                 when (route) {
                     AppRoute.Chat -> NavEntry(route) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Chat")
-                        }
+                        ChatScreen()
                     }
                     AppRoute.Dashboard -> NavEntry(route) {
                         DashboardScreen()

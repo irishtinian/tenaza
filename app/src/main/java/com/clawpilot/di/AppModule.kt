@@ -5,6 +5,7 @@ import com.clawpilot.data.local.crypto.KeyStoreManager
 import com.clawpilot.data.local.prefs.AppPreferences
 import com.clawpilot.data.local.prefs.CredentialStore
 import com.clawpilot.ui.connection.ConnectionViewModel
+import com.clawpilot.ui.chat.ChatViewModel
 import com.clawpilot.ui.dashboard.DashboardViewModel
 import com.clawpilot.ui.pairing.PairingViewModel
 import org.koin.android.ext.koin.androidContext
@@ -19,4 +20,5 @@ val appModule = module {
     viewModelOf(::PairingViewModel)
     viewModelOf(::ConnectionViewModel)
     viewModelOf(::DashboardViewModel)
+    viewModelOf(::ChatViewModel)
 }
