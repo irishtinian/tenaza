@@ -21,6 +21,7 @@ class AppPreferences(private val context: Context) {
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_LAST_GATEWAY_URL = stringPreferencesKey("last_gateway_url")
         val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+        val KEY_BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
     }
 
     /**
@@ -74,6 +75,24 @@ class AppPreferences(private val context: Context) {
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         context.appDataStore.edit { prefs ->
             prefs[KEY_NOTIFICATIONS_ENABLED] = enabled
+        }
+    }
+
+    /**
+     * Flujo reactivo del estado del bloqueo biométrico.
+     * Por defecto desactivado para no bloquear a usuarios existentes.
+     */
+    fun getBiometricEnabled(): Flow<Boolean> =
+        context.appDataStore.data.map { prefs ->
+            prefs[KEY_BIOMETRIC_ENABLED] ?: false
+        }
+
+    /**
+     * Persiste la preferencia de bloqueo biométrico.
+     */
+    suspend fun setBiometricEnabled(enabled: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[KEY_BIOMETRIC_ENABLED] = enabled
         }
     }
 }

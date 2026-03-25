@@ -82,6 +82,9 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.tink)
 
+    // Autenticación biométrica (bloqueo de app)
+    implementation(libs.biometric)
+
     // CameraX + ML Kit para escáner QR (Plan 01-04)
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)

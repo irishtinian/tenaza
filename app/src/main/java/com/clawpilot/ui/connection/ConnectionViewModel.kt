@@ -19,6 +19,9 @@ class ConnectionViewModel(
 
     val connectionState: StateFlow<ConnectionState> = connectionRepository.connectionState
 
+    /** Versión del gateway obtenida del handshake */
+    val gatewayVersion: StateFlow<String?> = connectionRepository.gatewayVersion
+
     val isPaired: StateFlow<Boolean> = connectionRepository.isPaired
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 

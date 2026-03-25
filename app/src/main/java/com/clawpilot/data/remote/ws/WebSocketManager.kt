@@ -47,6 +47,10 @@ class WebSocketManager(
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: StateFlow<ConnectionState> = _connectionState
 
+    // Versión del gateway extraída del handshake (payload.server.version)
+    private val _gatewayVersion = MutableStateFlow<String?>(null)
+    val gatewayVersion: StateFlow<String?> = _gatewayVersion
+
     private val _frames = MutableSharedFlow<GatewayFrame>(replay = 0, extraBufferCapacity = 64)
     val frames: SharedFlow<GatewayFrame> = _frames
 
@@ -163,6 +167,16 @@ class WebSocketManager(
                 if (frame.ok) {
                     handshakeComplete = true
                     reconnectAttempt = 0
+
+                    // Extraer versión del servidor desde el payload del handshake
+                    val serverVersion = try {
+                        frame.payload?.jsonObject
+                            ?.get("server")?.jsonObject
+                            ?.get("version")?.jsonPrimitive?.content
+                    } catch (_: Exception) { null }
+                    _gatewayVersion.value = serverVersion
+                    Log.w(TAG, "Gateway version: $serverVersion")
+
                     _connectionState.value = ConnectionState.Connected
                     Log.w(TAG, "Handshake completado — Connected con scopes")
 

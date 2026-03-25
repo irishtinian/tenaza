@@ -3,6 +3,7 @@ package com.clawpilot.ui.settings
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.clawpilot.BuildConfig
+import com.clawpilot.MainActivity
 import com.clawpilot.data.local.crypto.Ed25519KeyManager
 import com.clawpilot.data.local.crypto.KeyStoreManager
 import com.clawpilot.data.local.prefs.AppPreferences
@@ -59,6 +61,7 @@ fun SettingsScreen(
     connectionViewModel: ConnectionViewModel = koinViewModel()
 ) {
     val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
+    val gatewayVersion by connectionViewModel.gatewayVersion.collectAsStateWithLifecycle()
     val credentialStore: CredentialStore = koinInject()
     val keyStoreManager: KeyStoreManager = koinInject()
     val ed25519KeyManager: Ed25519KeyManager = koinInject()
@@ -75,6 +78,10 @@ fun SettingsScreen(
     // Estado del modo de tema desde DataStore
     val themeMode by appPreferences.getThemeMode()
         .collectAsStateWithLifecycle(initialValue = "system")
+
+    // Estado del bloqueo biométrico desde DataStore
+    val biometricEnabled by appPreferences.getBiometricEnabled()
+        .collectAsStateWithLifecycle(initialValue = false)
 
     // Launcher para solicitar permiso POST_NOTIFICATIONS (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -190,6 +197,50 @@ fun SettingsScreen(
             Spacer(Modifier.height(16.dp))
         }
 
+        // Sección seguridad (bloqueo biométrico)
+        item {
+            Text("Security", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Biometric Lock",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Switch(
+                    checked = biometricEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            if (enabled) {
+                                // Verificar que el dispositivo soporta biometría/PIN
+                                val activity = context as? MainActivity
+                                if (activity != null && activity.canAuthenticateBiometric()) {
+                                    appPreferences.setBiometricEnabled(true)
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "No biometric or device credential available",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            } else {
+                                appPreferences.setBiometricEnabled(false)
+                            }
+                        }
+                    }
+                )
+            }
+            Text(
+                text = "Require fingerprint, face, or PIN to open the app",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+
         // Sección desemparejamiento
         item {
             Text("Device", style = MaterialTheme.typography.titleMedium)
@@ -214,6 +265,14 @@ fun SettingsScreen(
             Text(
                 "ClawPilot v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                 style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(4.dp))
+
+            // Versión del gateway (obtenida del handshake WebSocket)
+            Text(
+                text = if (gatewayVersion != null) "Gateway: v$gatewayVersion" else "Gateway: not connected",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(4.dp))
 

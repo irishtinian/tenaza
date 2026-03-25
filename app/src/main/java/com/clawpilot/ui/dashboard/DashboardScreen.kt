@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.clawpilot.ui.connection.ConnectionViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -48,9 +49,11 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun DashboardScreen(
     onAgentTap: (agentId: String, agentName: String) -> Unit = { _, _ -> },
-    viewModel: DashboardViewModel = koinViewModel()
+    viewModel: DashboardViewModel = koinViewModel(),
+    connectionViewModel: ConnectionViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val gatewayVersion by connectionViewModel.gatewayVersion.collectAsStateWithLifecycle()
 
     PullToRefreshBox(
         isRefreshing = state.isLoading,
@@ -79,7 +82,7 @@ fun DashboardScreen(
 
                 // Card de salud
                 state.health?.let { health ->
-                    item { HealthCard(health) }
+                    item { HealthCard(health, gatewayVersion) }
                 }
 
                 // Canales
@@ -134,9 +137,14 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun HealthCard(health: HealthInfo) {
+private fun HealthCard(health: HealthInfo, gatewayVersion: String? = null) {
     val statusColor = if (health.ok) Color(0xFF4CAF50) else Color(0xFFF44336)
-    val statusText = if (health.ok) "Online" else "Offline"
+    // Mostrar versión del gateway junto al estado si está disponible
+    val statusText = if (health.ok) {
+        if (gatewayVersion != null) "Online \u00b7 v$gatewayVersion" else "Online"
+    } else {
+        "Offline"
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),

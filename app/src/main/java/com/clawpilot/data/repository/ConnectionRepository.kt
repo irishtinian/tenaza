@@ -27,6 +27,9 @@ class ConnectionRepository(
     val frames: SharedFlow<GatewayFrame> = webSocketManager.frames
     val isPaired: Flow<Boolean> = credentialStore.isPaired()
 
+    /** Versión del gateway obtenida durante el handshake WebSocket */
+    val gatewayVersion: StateFlow<String?> = webSocketManager.gatewayVersion
+
     suspend fun connectWithStoredCredentials() {
         val credentials = credentialStore.getCredentials().first() ?: return
         val params = buildConnectParams(credentials.gatewayUrl, credentials.token)
