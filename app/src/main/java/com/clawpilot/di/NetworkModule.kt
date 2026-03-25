@@ -11,14 +11,11 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Módulo Koin para la capa de red.
- *
- * OkHttpClient con pingInterval de 25s para mantener la conexión viva (Pitfall 7 — battery drain
- * por keepalive demasiado agresivo evitado con 25s, valor recomendado para proxies típicos).
  */
 val networkModule = module {
     single {
         OkHttpClient.Builder()
-            .pingInterval(25, TimeUnit.SECONDS) // Heartbeat a nivel de aplicación
+            .pingInterval(25, TimeUnit.SECONDS)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
@@ -34,7 +31,8 @@ val networkModule = module {
     single {
         ConnectionRepository(
             webSocketManager = get(),
-            credentialStore = get()
+            credentialStore = get(),
+            keyStoreManager = get()
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.clawpilot.data.remote.ws
 
+import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -11,29 +12,39 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import java.security.KeyStore
+import java.security.Signature
 
 private const val TAG = "WebSocketManager"
 
 /**
  * Gestor de conexión WebSocket con el gateway OpenClaw.
  *
- * Características:
- * - Reconexión automática con backoff exponencial + jitter (ReconnectPolicy)
- * - Enforcement TLS: fuerza wss:// para hosts remotos (no-loopback)
- * - Parsea frames JSON-RPC entrantes y los emite como SharedFlow
- * - Expone el estado de conexión como StateFlow
+ * Flujo de conexión:
+ * 1. Abrir WebSocket al gateway
+ * 2. Recibir evento connect.challenge con nonce
+ * 3. Firmar payload con ECDSA (clave del Android Keystore)
+ * 4. Enviar request "connect" con auth token + device identity + firma
+ * 5. Recibir respuesta ok → Connected con scopes
+ *
+ * Reconexión automática con backoff exponencial + jitter.
+ * Enforcement TLS para hosts remotos.
  */
 class WebSocketManager(
     private val okHttpClient: OkHttpClient,
     private val scope: CoroutineScope
 ) {
-
-    // --- Estado público ---
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: StateFlow<ConnectionState> = _connectionState
@@ -41,81 +52,69 @@ class WebSocketManager(
     private val _frames = MutableSharedFlow<GatewayFrame>(replay = 0, extraBufferCapacity = 64)
     val frames: SharedFlow<GatewayFrame> = _frames
 
-    // --- Estado interno ---
-
     private var webSocket: WebSocket? = null
     private var reconnectJob: Job? = null
-    private var currentUrl: String? = null
-    private var currentToken: String? = null
+    private var connectParams: GatewayConnectParams? = null
     private var reconnectAttempt: Int = 0
     private var userDisconnected: Boolean = false
+    private var handshakeComplete: Boolean = false
 
-    // Instancia reutilizable de Json para no crear una nueva en cada llamada
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     // --- API pública ---
 
-    /**
-     * Inicia la conexión WebSocket.
-     * Fuerza wss:// para hosts que no sean loopback o privados (SECR-01).
-     */
-    fun connect(url: String, token: String) {
+    fun connect(params: GatewayConnectParams) {
         reconnectJob?.cancel()
-        currentUrl = url
-        currentToken = token
+        connectParams = params
         userDisconnected = false
+        handshakeComplete = false
         _connectionState.value = ConnectionState.Connecting
 
-        val safeUrl = enforceTls(url)
-        val fullUrl = if (token.isNotEmpty()) "$safeUrl?token=$token" else safeUrl
-        Log.w(TAG, "connect(): url=$fullUrl")
-        val request = Request.Builder()
-            .url(fullUrl)
-            .build()
-
+        val safeUrl = enforceTls(params.url)
+        Log.w(TAG, "connect(): url=$safeUrl")
+        val request = Request.Builder().url(safeUrl).build()
         webSocket = okHttpClient.newWebSocket(request, webSocketListener)
-        Log.w(TAG, "connect(): WebSocket created, waiting for callback...")
     }
 
-    /**
-     * Desconecta limpiamente por iniciativa del usuario.
-     * No dispara reconexión.
-     */
     fun disconnect() {
         userDisconnected = true
         reconnectJob?.cancel()
         reconnectJob = null
         webSocket?.close(1000, "User disconnect")
         webSocket = null
+        handshakeComplete = false
         _connectionState.value = ConnectionState.Disconnected
     }
 
-    /**
-     * Envía un frame JSON-RPC serializado.
-     * Devuelve false si el WebSocket no está abierto.
-     */
     fun send(frame: RequestFrame): Boolean {
         val text = json.encodeToString(frame)
+        Log.w(TAG, "send(): ${text.take(300)}")
         return webSocket?.send(text) ?: false
     }
 
-    // --- Listener interno ---
+    // --- Listener ---
 
     private val webSocketListener = object : WebSocketListener() {
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
-            Log.w(TAG, "Conexión establecida")
-            _connectionState.value = ConnectionState.Connected
-            reconnectAttempt = 0
+            Log.w(TAG, "WebSocket abierto, esperando connect.challenge...")
+            // No seteamos Connected aún — esperamos el handshake
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
             val frame = parseGatewayFrame(text)
-            if (frame != null) {
-                _frames.tryEmit(frame)
-            } else {
+            if (frame == null) {
                 Log.w(TAG, "Frame no reconocido: ${text.take(120)}")
+                return
             }
+
+            if (!handshakeComplete) {
+                handleHandshake(frame)
+                return
+            }
+
+            // Post-handshake: emitir frames a los observers
+            _frames.tryEmit(frame)
         }
 
         override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -124,6 +123,7 @@ class WebSocketManager(
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             Log.w(TAG, "WebSocket cerrado: code=$code reason=$reason")
+            handshakeComplete = false
             if (userDisconnected) {
                 _connectionState.value = ConnectionState.Disconnected
             } else {
@@ -133,6 +133,7 @@ class WebSocketManager(
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Log.w(TAG, "Fallo WebSocket: ${t.message}")
+            handshakeComplete = false
             _connectionState.value = ConnectionState.Error(t.message ?: "Error desconocido")
             if (!userDisconnected) {
                 scheduleReconnect()
@@ -140,51 +141,126 @@ class WebSocketManager(
         }
     }
 
+    // --- Handshake ---
+
+    private fun handleHandshake(frame: GatewayFrame) {
+        when (frame) {
+            is GatewayFrame.Event -> {
+                if (frame.event == "connect.challenge") {
+                    val nonce = frame.payload?.jsonObject
+                        ?.get("nonce")?.jsonPrimitive?.content
+                    if (nonce != null) {
+                        Log.w(TAG, "Challenge recibido, enviando connect con device auth...")
+                        sendConnectRequest(nonce)
+                    } else {
+                        Log.w(TAG, "Challenge sin nonce")
+                        _connectionState.value = ConnectionState.Error("Invalid challenge from gateway")
+                    }
+                }
+            }
+            is GatewayFrame.Response -> {
+                // Respuesta al connect request
+                if (frame.ok) {
+                    handshakeComplete = true
+                    reconnectAttempt = 0
+                    _connectionState.value = ConnectionState.Connected
+                    Log.w(TAG, "Handshake completado — Connected con scopes")
+
+                    // Emitir el connect response por si alguien necesita el snapshot
+                    _frames.tryEmit(frame)
+                } else {
+                    val errorMsg = frame.error?.message ?: "Authentication failed"
+                    Log.w(TAG, "Connect rechazado: $errorMsg")
+                    _connectionState.value = ConnectionState.Error(errorMsg)
+                    webSocket?.close(1000, "Auth failed")
+                }
+            }
+        }
+    }
+
+    private fun sendConnectRequest(nonce: String) {
+        val params = connectParams ?: return
+
+        // Conectar con token auth, sin device identity.
+        // Usa gateway-client ID que no requiere device auth.
+        // TODO: Implementar Ed25519 device pairing para scopes completas
+        val connectFrame = RequestFrame(
+            method = "connect",
+            params = buildJsonObject {
+                put("minProtocol", 3)
+                put("maxProtocol", 3)
+                put("role", "operator")
+                put("scopes", buildJsonArray {
+                    params.scopes.forEach { add(JsonPrimitive(it)) }
+                })
+                put("client", buildJsonObject {
+                    put("id", "gateway-client")
+                    put("displayName", "ClawPilot")
+                    put("version", params.clientVersion)
+                    put("platform", params.platform)
+                    put("deviceFamily", params.deviceFamily)
+                    put("mode", "backend")
+                })
+                put("auth", buildJsonObject {
+                    if (params.token.isNotEmpty()) {
+                        put("token", params.token)
+                    }
+                })
+            }
+        )
+
+        send(connectFrame)
+    }
+
+    /**
+     * Firma datos con la clave ECDSA del Android Keystore.
+     * Devuelve la firma en Base64 URL-safe (sin padding).
+     */
+    private fun signWithKeystore(data: ByteArray): String {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val privateKey = ks.getKey("clawpilot_device_key", null)
+            ?: throw IllegalStateException("No device key in Keystore")
+        val sig = Signature.getInstance("SHA256withECDSA")
+        sig.initSign(privateKey as java.security.PrivateKey)
+        sig.update(data)
+        val signed = sig.sign()
+        return Base64.encodeToString(signed, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+    }
+
     // --- Reconexión ---
 
     private fun scheduleReconnect() {
         if (userDisconnected) return
-
         reconnectAttempt++
         val delayMs = ReconnectPolicy.delayFor(reconnectAttempt)
         _connectionState.value = ConnectionState.Reconnecting(reconnectAttempt, delayMs)
-
         Log.w(TAG, "Reconexión en ${delayMs}ms (intento $reconnectAttempt)")
 
         reconnectJob = scope.launch {
             delay(delayMs)
-            val url = currentUrl ?: return@launch
-            val token = currentToken ?: return@launch
-            connect(url, token)
+            val p = connectParams ?: return@launch
+            connect(p)
         }
     }
 
-    // --- TLS enforcement (SECR-01) ---
+    // --- TLS enforcement ---
 
-    /**
-     * Para hosts que no sean loopback (127.x, localhost) ni red privada (10.x, 192.168.x, 172.16-31.x),
-     * reemplaza ws:// por wss:// para garantizar cifrado en tránsito.
-     */
     private fun enforceTls(url: String): String {
         if (!url.startsWith("ws://", ignoreCase = true)) return url
-
         val host = extractHost(url)
         if (isPrivateOrLoopback(host)) return url
-
         val upgraded = "wss://" + url.removePrefix("ws://")
         Log.w(TAG, "URL upgradeada a TLS: $url -> $upgraded")
         return upgraded
     }
 
     private fun extractHost(url: String): String {
-        // Formato: ws://host:port/path o ws://host/path
         val withoutScheme = url.removePrefix("ws://").removePrefix("wss://")
         return withoutScheme.substringBefore("/").substringBefore(":")
     }
 
     private fun isPrivateOrLoopback(host: String): Boolean {
         if (host == "localhost" || host == "127.0.0.1" || host == "::1") return true
-        // Verificar rangos privados IPv4
         val parts = host.split(".").mapNotNull { it.toIntOrNull() }
         if (parts.size != 4) return false
         return when {

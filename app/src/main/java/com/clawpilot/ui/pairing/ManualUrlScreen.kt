@@ -31,6 +31,7 @@ fun ManualUrlScreen(
     onBack: () -> Unit
 ) {
     var urlText by rememberSaveable { mutableStateOf("") }
+    var tokenText by rememberSaveable { mutableStateOf("") }
     val urlError by viewModel.manualUrlError.collectAsStateWithLifecycle()
 
     Column(
@@ -59,9 +60,20 @@ fun ManualUrlScreen(
             value = urlText,
             onValueChange = { urlText = it },
             label = { Text("Gateway URL") },
-            placeholder = { Text("https://gateway.example.com:18789") },
+            placeholder = { Text("ws://127.0.0.1:18789") },
             isError = urlError != null,
             supportingText = urlError?.let { error -> { Text(error) } },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = tokenText,
+            onValueChange = { tokenText = it },
+            label = { Text("Auth Token") },
+            placeholder = { Text("From gateway.auth.token in openclaw.json") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -69,7 +81,7 @@ fun ManualUrlScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { viewModel.onManualUrlSubmitted(urlText) },
+            onClick = { viewModel.onManualUrlSubmitted(urlText, tokenText) },
             enabled = urlText.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) {
