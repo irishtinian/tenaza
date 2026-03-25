@@ -24,7 +24,7 @@
 **Plans:** 5 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Android project scaffold (Gradle, Compose, Koin DI, Navigation 3 shell)
+- [x] 01-01-PLAN.md — Android project scaffold (Gradle, Compose, Koin DI, Navigation 3 shell)
 - [x] 01-02-PLAN.md — Secure storage (ECDSA Keystore, DataStore + Tink encrypted credentials)
 - [ ] 01-03-PLAN.md — WebSocket connection manager (OkHttp, reconnect, TLS, frame parsing)
 - [ ] 01-04-PLAN.md — QR scanner + manual URL entry (CameraX, ML Kit, PairingViewModel)

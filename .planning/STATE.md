@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-25T15:25:20.387Z"
+last_updated: "2026-03-25T15:35:19.449Z"
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 20
 ---
 
 # State: ClawPilot
@@ -55,7 +55,14 @@ Progress: [██░░░░░░░░] 20%
 
 ## Completed Plans
 
+- ✓ 01-01: Android scaffold — AGP 8.13.2 + Kotlin 2.1.21 + Compose BOM 2026.03 + Navigation 3 shell + Koin DI (commits: 859e6be, 7946f5c)
 - ✓ 01-02: ECDSA KeyStoreManager + Tink CredentialStore + AppPreferences (commits: 76cfd2b, b939eb1)
 
+## Key Technical Decisions (Updated)
+
+- AGP 8.13.2 instead of 9.1.0: AGP 9.1.0 requires Gradle 9.3.1 but KGP has no Gradle 9.x variant
+- Kotlin 2.1.21 instead of 2.2.0: KGP 2.2.0 incompatible with Gradle 9.x
+- Gradle 8.13 as wrapper: latest 8.x series, compatible with both AGP and KGP
+
 ---
-*Last updated: 2026-03-25 after Plan 01-02 completion*
+*Last updated: 2026-03-25 after Plan 01-01 completion*

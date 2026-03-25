@@ -10,7 +10,7 @@
 - [ ] **CONN-01**: User can pair device with gateway by scanning QR code displayed on gateway Control UI
 - [x] **CONN-02**: Pairing uses ECDSA keypair generated on device, stored in Android Keystore
 - [x] **CONN-03**: App stores gateway URL + scoped token securely (DataStore + Tink)
-- [ ] **CONN-04**: App shows connection status (connected/disconnected/reconnecting) at all times
+- [x] **CONN-04**: App shows connection status (connected/disconnected/reconnecting) at all times
 - [ ] **CONN-05**: App auto-reconnects with exponential backoff when connection drops
 - [ ] **CONN-06**: User can manually enter gateway URL as fallback to QR scanning
 - [ ] **CONN-07**: User can unpair/disconnect from gateway
@@ -113,7 +113,7 @@
 | CONN-01 | Phase 1 | Pending |
 | CONN-02 | Phase 1 | Complete |
 | CONN-03 | Phase 1 | Complete |
-| CONN-04 | Phase 1 | Pending |
+| CONN-04 | Phase 1 | Complete |
 | CONN-05 | Phase 1 | Pending |
 | CONN-06 | Phase 1 | Pending |
 | CONN-07 | Phase 1 | Pending |
