@@ -12,6 +12,11 @@ app/build/
 
 # Local config
 local.properties
+keystore.properties
+
+# Signing keys
+*.jks
+*.keystore
 
 # APKs generados
 *.apk
