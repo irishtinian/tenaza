@@ -16,7 +16,9 @@ data class GatewayConnectParams(
         "operator.read",
         "operator.write",
         "operator.approvals"
-    )
+    ),
+    /** Función de firma Ed25519. Recibe bytes, devuelve base64url de la firma. */
+    val signFunc: ((ByteArray) -> String)? = null
 ) {
     /**
      * Construye el payload V3 para firma ECDSA.

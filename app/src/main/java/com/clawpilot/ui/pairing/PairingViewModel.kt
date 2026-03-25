@@ -114,12 +114,8 @@ class PairingViewModel(
     private fun isValidUrl(url: String): Boolean {
         val validSchemes = listOf("http://", "https://", "ws://", "wss://")
         if (validSchemes.none { url.startsWith(it, ignoreCase = true) }) return false
-        return try {
-            val httpUrl = url.replace("wss://", "https://").replace("ws://", "http://")
-            URL(httpUrl)
-            true
-        } catch (_: Exception) {
-            false
-        }
+        // Verificar que tiene host después del scheme
+        val afterScheme = url.substringAfter("://")
+        return afterScheme.isNotEmpty() && afterScheme.contains(".")  || afterScheme.startsWith("localhost") || afterScheme.startsWith("127.") || afterScheme.startsWith("10.") || afterScheme.startsWith("192.168.")
     }
 }

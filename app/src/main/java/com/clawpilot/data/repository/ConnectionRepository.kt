@@ -1,7 +1,7 @@
 package com.clawpilot.data.repository
 
 import android.os.Build
-import com.clawpilot.data.local.crypto.KeyStoreManager
+import com.clawpilot.data.local.crypto.Ed25519KeyManager
 import com.clawpilot.data.local.prefs.CredentialStore
 import com.clawpilot.data.remote.ws.ConnectionState
 import com.clawpilot.data.remote.ws.GatewayConnectParams
@@ -12,34 +12,27 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import java.util.UUID
 
 /**
  * Orquesta el ciclo de vida de la conexión al gateway.
- * Construye GatewayConnectParams con credenciales + device identity.
+ * Usa Ed25519 device identity para obtener scopes completas.
  */
 class ConnectionRepository(
     private val webSocketManager: WebSocketManager,
     private val credentialStore: CredentialStore,
-    private val keyStoreManager: KeyStoreManager
+    private val ed25519KeyManager: Ed25519KeyManager
 ) {
 
     val connectionState: StateFlow<ConnectionState> = webSocketManager.connectionState
     val frames: SharedFlow<GatewayFrame> = webSocketManager.frames
     val isPaired: Flow<Boolean> = credentialStore.isPaired()
 
-    /**
-     * Lee las credenciales almacenadas y conecta al gateway con device auth.
-     */
     suspend fun connectWithStoredCredentials() {
         val credentials = credentialStore.getCredentials().first() ?: return
         val params = buildConnectParams(credentials.gatewayUrl, credentials.token)
         webSocketManager.connect(params)
     }
 
-    /**
-     * Conecta con URL y token dados (flujo de emparejamiento).
-     */
     suspend fun connectForPairing(url: String, token: String) {
         val params = buildConnectParams(url, token)
         webSocketManager.connect(params)
@@ -54,27 +47,17 @@ class ConnectionRepository(
     }
 
     private fun buildConnectParams(url: String, token: String): GatewayConnectParams {
-        // Asegurar que existe el par ECDSA
-        if (!keyStoreManager.hasKeyPair()) {
-            keyStoreManager.generateEcdsaKeyPair()
+        if (!ed25519KeyManager.hasKeyPair()) {
+            ed25519KeyManager.generateKeyPair()
         }
-        val publicKey = keyStoreManager.getPublicKeyBase64()
-        val deviceId = generateDeviceId()
-        val deviceFamily = "${Build.MANUFACTURER} ${Build.MODEL}"
-
         return GatewayConnectParams(
             url = url,
             token = token,
-            deviceId = deviceId,
-            publicKeyBase64 = publicKey,
+            deviceId = ed25519KeyManager.getDeviceId(),
+            publicKeyBase64 = ed25519KeyManager.getPublicKeyBase64Url(),
             platform = "android",
-            deviceFamily = deviceFamily
+            deviceFamily = "${Build.MANUFACTURER} ${Build.MODEL}",
+            signFunc = { data -> ed25519KeyManager.sign(data) }
         )
-    }
-
-    private fun generateDeviceId(): String {
-        return UUID.nameUUIDFromBytes(
-            "${Build.MANUFACTURER}|${Build.MODEL}|${Build.FINGERPRINT}".toByteArray()
-        ).toString()
     }
 }

@@ -73,6 +73,7 @@ dependencies {
 
     // Red
     implementation(libs.okhttp)
+    implementation(libs.bouncycastle)
     implementation(libs.kotlinx.serialization.json)
 
     // Almacenamiento cifrado de credenciales (Plan 01-02)

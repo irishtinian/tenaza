@@ -10,6 +10,7 @@ datastore = "1.2.1"
 tink = "1.16.0"
 ksp = "2.1.21-1.0.31"
 okhttp = "4.12.0"
+bouncycastle = "1.80"
 kotlinx-serialization = "1.8.0"
 activity-compose = "1.10.0"
 lifecycle = "2.9.0"
@@ -46,6 +47,7 @@ tink = { group = "com.google.crypto.tink", name = "tink-android", version.ref = 
 
 # Red
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+bouncycastle = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
 # AndroidX

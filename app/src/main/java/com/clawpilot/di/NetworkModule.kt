@@ -9,9 +9,6 @@ import okhttp3.OkHttpClient
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
 
-/**
- * Módulo Koin para la capa de red.
- */
 val networkModule = module {
     single {
         OkHttpClient.Builder()
@@ -32,7 +29,7 @@ val networkModule = module {
         ConnectionRepository(
             webSocketManager = get(),
             credentialStore = get(),
-            keyStoreManager = get()
+            ed25519KeyManager = get()
         )
     }
 }

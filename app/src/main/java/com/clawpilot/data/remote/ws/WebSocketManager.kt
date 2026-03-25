@@ -1,6 +1,5 @@
 package com.clawpilot.data.remote.ws
 
-import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -23,8 +22,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import java.security.KeyStore
-import java.security.Signature
 
 private const val TAG = "WebSocketManager"
 
@@ -181,9 +178,17 @@ class WebSocketManager(
     private fun sendConnectRequest(nonce: String) {
         val params = connectParams ?: return
 
-        // Conectar con token auth, sin device identity.
-        // Usa gateway-client ID que no requiere device auth.
-        // TODO: Implementar Ed25519 device pairing para scopes completas
+        val signedAtMs = System.currentTimeMillis()
+        val signaturePayload = params.buildSignaturePayload(nonce, signedAtMs)
+        val signature = try {
+            params.signFunc?.invoke(signaturePayload.toByteArray(Charsets.UTF_8))
+                ?: throw IllegalStateException("No sign function provided")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error firmando: ${e.message}")
+            _connectionState.value = ConnectionState.Error("Device signing failed: ${e.message}")
+            return
+        }
+
         val connectFrame = RequestFrame(
             method = "connect",
             params = buildJsonObject {
@@ -194,17 +199,24 @@ class WebSocketManager(
                     params.scopes.forEach { add(JsonPrimitive(it)) }
                 })
                 put("client", buildJsonObject {
-                    put("id", "gateway-client")
+                    put("id", "openclaw-android")
                     put("displayName", "ClawPilot")
                     put("version", params.clientVersion)
                     put("platform", params.platform)
                     put("deviceFamily", params.deviceFamily)
-                    put("mode", "backend")
+                    put("mode", "ui")
                 })
                 put("auth", buildJsonObject {
                     if (params.token.isNotEmpty()) {
                         put("token", params.token)
                     }
+                })
+                put("device", buildJsonObject {
+                    put("id", params.deviceId)
+                    put("publicKey", params.publicKeyBase64)
+                    put("signature", signature)
+                    put("signedAt", signedAtMs)
+                    put("nonce", nonce)
                 })
             }
         )
@@ -212,20 +224,6 @@ class WebSocketManager(
         send(connectFrame)
     }
 
-    /**
-     * Firma datos con la clave ECDSA del Android Keystore.
-     * Devuelve la firma en Base64 URL-safe (sin padding).
-     */
-    private fun signWithKeystore(data: ByteArray): String {
-        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        val privateKey = ks.getKey("clawpilot_device_key", null)
-            ?: throw IllegalStateException("No device key in Keystore")
-        val sig = Signature.getInstance("SHA256withECDSA")
-        sig.initSign(privateKey as java.security.PrivateKey)
-        sig.update(data)
-        val signed = sig.sign()
-        return Base64.encodeToString(signed, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
-    }
 
     // --- Reconexión ---
 
