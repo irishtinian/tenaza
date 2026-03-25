@@ -99,7 +99,7 @@ class AgentDetailViewModel(
                     "agents.files.get",
                     buildJsonObject {
                         put("agentId", agentId)
-                        put("path", path)
+                        put("name", path)
                     },
                     timeoutMs = 15_000
                 )
