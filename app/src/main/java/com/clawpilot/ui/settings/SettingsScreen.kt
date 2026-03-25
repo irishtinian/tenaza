@@ -1,9 +1,15 @@
 package com.clawpilot.ui.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,9 +19,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,9 +32,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.clawpilot.data.local.crypto.KeyStoreManager
+import com.clawpilot.data.local.prefs.AppPreferences
 import com.clawpilot.data.local.prefs.CredentialStore
 import com.clawpilot.data.remote.ws.ConnectionState
 import com.clawpilot.ui.connection.ConnectionViewModel
@@ -35,7 +46,8 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 /**
- * Pantalla de ajustes con estado de conexión, desemparejamiento y versión.
+ * Pantalla de ajustes con estado de conexión, notificaciones,
+ * desemparejamiento y versión.
  */
 @Composable
 fun SettingsScreen(
@@ -44,9 +56,24 @@ fun SettingsScreen(
     val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
     val credentialStore: CredentialStore = koinInject()
     val keyStoreManager: KeyStoreManager = koinInject()
+    val appPreferences: AppPreferences = koinInject()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var showUnpairDialog by remember { mutableStateOf(false) }
+
+    // Estado de notificaciones desde DataStore
+    val notificationsEnabled by appPreferences.getNotificationsEnabled()
+        .collectAsStateWithLifecycle(initialValue = true)
+
+    // Launcher para solicitar permiso POST_NOTIFICATIONS (Android 13+)
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            scope.launch { appPreferences.setNotificationsEnabled(true) }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -74,6 +101,51 @@ fun SettingsScreen(
                 Spacer(Modifier.width(8.dp))
                 Text(label)
             }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        // Sección notificaciones
+        item {
+            Text("Notifications", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Enable notifications",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Switch(
+                    checked = notificationsEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                // Verificar si ya tenemos permiso
+                                val hasPermission = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                if (!hasPermission) {
+                                    // Solicitar permiso; el callback actualizará la preferencia
+                                    notificationPermissionLauncher.launch(
+                                        Manifest.permission.POST_NOTIFICATIONS
+                                    )
+                                    return@launch
+                                }
+                            }
+                            appPreferences.setNotificationsEnabled(enabled)
+                        }
+                    }
+                )
+            }
+            Text(
+                text = "Receive approval requests, alerts, and cron failure notifications",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(16.dp))
         }
 

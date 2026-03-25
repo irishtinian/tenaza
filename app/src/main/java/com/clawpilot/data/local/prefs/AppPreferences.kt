@@ -2,6 +2,7 @@ package com.clawpilot.data.local.prefs
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +20,7 @@ class AppPreferences(private val context: Context) {
     companion object {
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_LAST_GATEWAY_URL = stringPreferencesKey("last_gateway_url")
+        val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
     }
 
     /**
@@ -54,6 +56,24 @@ class AppPreferences(private val context: Context) {
     suspend fun setLastGatewayUrl(url: String) {
         context.appDataStore.edit { prefs ->
             prefs[KEY_LAST_GATEWAY_URL] = url
+        }
+    }
+
+    /**
+     * Flujo reactivo del estado de las notificaciones (activadas/desactivadas).
+     * Por defecto están activadas.
+     */
+    fun getNotificationsEnabled(): Flow<Boolean> =
+        context.appDataStore.data.map { prefs ->
+            prefs[KEY_NOTIFICATIONS_ENABLED] ?: true
+        }
+
+    /**
+     * Persiste la preferencia de notificaciones del usuario.
+     */
+    suspend fun setNotificationsEnabled(enabled: Boolean) {
+        context.appDataStore.edit { prefs ->
+            prefs[KEY_NOTIFICATIONS_ENABLED] = enabled
         }
     }
 }

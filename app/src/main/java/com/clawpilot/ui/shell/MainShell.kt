@@ -31,6 +31,7 @@ import com.clawpilot.data.remote.ws.ConnectionState
 import com.clawpilot.ui.connection.ConnectionStatusBar
 import com.clawpilot.ui.connection.ConnectionViewModel
 import com.clawpilot.ui.chat.ChatScreen
+import com.clawpilot.ui.crons.CronsScreen
 import com.clawpilot.ui.dashboard.DashboardScreen
 import com.clawpilot.ui.navigation.AppRoute
 import com.clawpilot.ui.settings.SettingsScreen
@@ -125,9 +126,7 @@ fun MainShell(connectionViewModel: ConnectionViewModel) {
                         DashboardScreen()
                     }
                     AppRoute.Crons -> NavEntry(route) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Crons")
-                        }
+                        CronsScreen()
                     }
                     AppRoute.Settings -> NavEntry(route) {
                         SettingsScreen(connectionViewModel = connectionViewModel)
