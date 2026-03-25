@@ -17,6 +17,9 @@ local.properties
 *.apk
 *.aab
 
+# Planning/research docs (pueden contener datos personales)
+.planning/
+
 # Logs
 *.log
 
