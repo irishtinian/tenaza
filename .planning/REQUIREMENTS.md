@@ -8,8 +8,8 @@
 ### Connection & Pairing
 
 - [ ] **CONN-01**: User can pair device with gateway by scanning QR code displayed on gateway Control UI
-- [ ] **CONN-02**: Pairing uses ECDSA keypair generated on device, stored in Android Keystore
-- [ ] **CONN-03**: App stores gateway URL + scoped token securely (DataStore + Tink)
+- [x] **CONN-02**: Pairing uses ECDSA keypair generated on device, stored in Android Keystore
+- [x] **CONN-03**: App stores gateway URL + scoped token securely (DataStore + Tink)
 - [ ] **CONN-04**: App shows connection status (connected/disconnected/reconnecting) at all times
 - [ ] **CONN-05**: App auto-reconnects with exponential backoff when connection drops
 - [ ] **CONN-06**: User can manually enter gateway URL as fallback to QR scanning
@@ -56,8 +56,8 @@
 ### Security
 
 - [ ] **SECR-01**: All gateway communication uses TLS (wss://)
-- [ ] **SECR-02**: Auth token stored encrypted (DataStore + Tink)
-- [ ] **SECR-03**: Only one device can be paired per gateway (enforced app-side)
+- [x] **SECR-02**: Auth token stored encrypted (DataStore + Tink)
+- [x] **SECR-03**: Only one device can be paired per gateway (enforced app-side)
 - [ ] **SECR-04**: App supports optional biometric lock (fingerprint/face) to open
 
 ## v2 Requirements
@@ -111,8 +111,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CONN-01 | Phase 1 | Pending |
-| CONN-02 | Phase 1 | Pending |
-| CONN-03 | Phase 1 | Pending |
+| CONN-02 | Phase 1 | Complete |
+| CONN-03 | Phase 1 | Complete |
 | CONN-04 | Phase 1 | Pending |
 | CONN-05 | Phase 1 | Pending |
 | CONN-06 | Phase 1 | Pending |
@@ -144,8 +144,8 @@
 | CRON-06 | Phase 5 | Pending |
 | CRON-07 | Phase 5 | Pending |
 | SECR-01 | Phase 1 | Pending |
-| SECR-02 | Phase 1 | Pending |
-| SECR-03 | Phase 1 | Pending |
+| SECR-02 | Phase 1 | Complete |
+| SECR-03 | Phase 1 | Complete |
 | SECR-04 | Phase 6 | Pending |
 
 **Coverage:**
