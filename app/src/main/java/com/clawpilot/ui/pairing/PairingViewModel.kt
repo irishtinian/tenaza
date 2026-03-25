@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -96,10 +97,15 @@ class PairingViewModel(
             connectionRepository.connectForPairing(wsUrl, pairingToken)
             _state.value = PairingState.WaitingForApproval(wsUrl)
 
-            // 3. Esperar estado Connected
-            connectionRepository.connectionState
-                .filter { it is ConnectionState.Connected }
-                .first()
+            // 3. Esperar estado Connected o Error (con timeout de 15s)
+            val connState = withTimeout(15_000L) {
+                connectionRepository.connectionState
+                    .filter { it is ConnectionState.Connected || it is ConnectionState.Error }
+                    .first()
+            }
+            if (connState is ConnectionState.Error) {
+                throw Exception("Connection failed: ${connState.reason}")
+            }
 
             // 4. Enviar frame connect.challenge con clave pública
             val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
@@ -113,11 +119,13 @@ class PairingViewModel(
             )
             connectionRepository.send(challengeFrame)
 
-            // 5. Esperar evento device.pair.resolved
-            val resolvedEvent = connectionRepository.frames
-                .filterIsInstance<GatewayFrame.Event>()
-                .filter { it.event == "device.pair.resolved" }
-                .first()
+            // 5. Esperar evento device.pair.resolved (timeout 60s — usuario puede tardar en aprobar)
+            val resolvedEvent = withTimeout(60_000L) {
+                connectionRepository.frames
+                    .filterIsInstance<GatewayFrame.Event>()
+                    .filter { it.event == "device.pair.resolved" }
+                    .first()
+            }
 
             // 6. Extraer token permanente de la respuesta
             val data = resolvedEvent.data?.jsonObject
@@ -140,7 +148,11 @@ class PairingViewModel(
             connectionRepository.connectWithStoredCredentials()
 
             _state.value = PairingState.Paired(credentials)
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            connectionRepository.disconnect()
+            _state.value = PairingState.Error("Connection timed out. Check the gateway URL and try again.")
         } catch (e: Exception) {
+            connectionRepository.disconnect()
             _state.value = PairingState.Error(e.message ?: "Pairing failed")
         }
     }
