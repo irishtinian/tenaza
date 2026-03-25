@@ -8,6 +8,7 @@ import com.clawpilot.ui.connection.ConnectionViewModel
 import com.clawpilot.ui.chat.ChatViewModel
 import com.clawpilot.ui.crons.CronViewModel
 import com.clawpilot.ui.agent.AgentDetailViewModel
+import com.clawpilot.ui.arena.ArenaViewModel
 import com.clawpilot.ui.dashboard.DashboardViewModel
 import com.clawpilot.ui.pairing.PairingViewModel
 import org.koin.android.ext.koin.androidContext
@@ -25,4 +26,5 @@ val appModule = module {
     viewModelOf(::DashboardViewModel)
     viewModelOf(::AgentDetailViewModel)
     viewModelOf(::ChatViewModel)
+    viewModelOf(::ArenaViewModel)
 }

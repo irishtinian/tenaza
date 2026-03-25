@@ -30,10 +30,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -63,6 +65,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
+    onOpenArena: () -> Unit = {},
     viewModel: ChatViewModel = koinViewModel()
 ) {
     val currentAgent by viewModel.currentAgent.collectAsStateWithLifecycle()
@@ -103,14 +106,31 @@ fun ChatScreen(
         val agent = currentAgent?.takeIf { it.agentId.isNotBlank() }
 
         if (agent == null) {
-            // Mostrar selector de agentes
-            AgentPickerSheet(
-                agents = agents,
-                onSelect = { info ->
-                    viewModel.selectAgent(info.id, info.displayName)
-                },
-                modifier = Modifier.padding(paddingValues)
-            )
+            // Mostrar selector de agentes + botón de Arena
+            Column(modifier = Modifier.padding(paddingValues)) {
+                // Botón para abrir el Arena
+                OutlinedButton(
+                    onClick = onOpenArena,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Groups,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Abrir Arena (chat grupal)")
+                }
+
+                AgentPickerSheet(
+                    agents = agents,
+                    onSelect = { info ->
+                        viewModel.selectAgent(info.id, info.displayName)
+                    }
+                )
+            }
         } else {
             // Mostrar interfaz de chat
             ChatConversation(

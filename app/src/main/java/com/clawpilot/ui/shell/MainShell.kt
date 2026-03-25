@@ -33,6 +33,7 @@ import com.clawpilot.ui.connection.ConnectionViewModel
 import com.clawpilot.ui.chat.ChatScreen
 import com.clawpilot.ui.crons.CronsScreen
 import com.clawpilot.ui.agent.AgentDetailScreen
+import com.clawpilot.ui.arena.ArenaScreen
 import com.clawpilot.ui.dashboard.DashboardScreen
 import com.clawpilot.ui.navigation.AppRoute
 import com.clawpilot.ui.settings.SettingsScreen
@@ -121,7 +122,16 @@ fun MainShell(connectionViewModel: ConnectionViewModel) {
             entryProvider = { route ->
                 when (route) {
                     AppRoute.Chat -> NavEntry(route) {
-                        ChatScreen()
+                        ChatScreen(
+                            onOpenArena = {
+                                chatBackstack.add(AppRoute.Arena)
+                            }
+                        )
+                    }
+                    AppRoute.Arena -> NavEntry(route) {
+                        ArenaScreen(
+                            onBack = { chatBackstack.removeLastOrNull() }
+                        )
                     }
                     AppRoute.Dashboard -> NavEntry(route) {
                         DashboardScreen(

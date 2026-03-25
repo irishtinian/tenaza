@@ -18,4 +18,5 @@ sealed interface AppRoute : NavKey {
     @Serializable data object Pairing : AppRoute
     @Serializable data object ManualUrl : AppRoute
     @Serializable data class AgentDetail(val agentId: String, val agentName: String) : AppRoute
+    @Serializable data object Arena : AppRoute
 }
