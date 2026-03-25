@@ -217,7 +217,7 @@ class WebSocketManager(
                 })
                 put("client", buildJsonObject {
                     put("id", "openclaw-android")
-                    put("displayName", "ClawPilot")
+                    put("displayName", "Tenaza")
                     put("version", params.clientVersion)
                     put("platform", params.platform)
                     put("deviceFamily", params.deviceFamily)

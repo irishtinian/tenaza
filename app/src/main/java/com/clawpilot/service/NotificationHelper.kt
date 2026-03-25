@@ -55,7 +55,7 @@ object NotificationHelper {
 
         val serviceChannel = NotificationChannel(
             CHANNEL_SERVICE,
-            "ClawPilot Service",
+            "Tenaza Service",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Notificación persistente del servicio de conexión"
@@ -84,7 +84,7 @@ object NotificationHelper {
 
         return NotificationCompat.Builder(context, CHANNEL_SERVICE)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("ClawPilot")
+            .setContentTitle("Tenaza")
             .setContentText(statusText)
             .setOngoing(true)
             .setContentIntent(pendingTap)

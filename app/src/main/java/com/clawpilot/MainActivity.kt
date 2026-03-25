@@ -152,7 +152,7 @@ class MainActivity : FragmentActivity() {
 
         // Cuando se usa DEVICE_CREDENTIAL, no se necesita negativeButtonText
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("ClawPilot")
+            .setTitle("Tenaza")
             .setSubtitle("Authenticate to access your agents")
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG
@@ -192,7 +192,7 @@ private fun LockScreen(onUnlockClick: () -> Unit) {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "ClawPilot",
+                text = "Tenaza",
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary
             )

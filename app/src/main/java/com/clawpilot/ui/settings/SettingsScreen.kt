@@ -263,7 +263,7 @@ fun SettingsScreen(
 
             // Versión dinámica desde BuildConfig
             Text(
-                "ClawPilot v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                "Tenaza v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.height(4.dp))
