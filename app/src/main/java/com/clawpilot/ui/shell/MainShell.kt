@@ -1,6 +1,7 @@
 package com.clawpilot.ui.shell
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -21,18 +22,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.clawpilot.R
+import com.clawpilot.data.remote.ws.ConnectionState
+import com.clawpilot.ui.connection.ConnectionStatusBar
+import com.clawpilot.ui.connection.ConnectionViewModel
 import com.clawpilot.ui.navigation.AppRoute
+import com.clawpilot.ui.settings.SettingsScreen
 
 /**
- * Shell principal de la app con navegación inferior de 4 pestañas.
- * Cada pestaña mantiene su propio backstack independiente.
+ * Shell principal de la app con navegación inferior de 4 pestañas
+ * y barra de estado de conexión.
  */
 @Composable
-fun MainShell() {
+fun MainShell(connectionViewModel: ConnectionViewModel) {
+    val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
+
     val tabs: List<AppRoute> = listOf(
         AppRoute.Chat,
         AppRoute.Dashboard,
@@ -42,7 +50,6 @@ fun MainShell() {
 
     var selectedTab by remember { mutableStateOf<AppRoute>(AppRoute.Dashboard) }
 
-    // Backstack independiente por pestaña — preserva estado al cambiar
     val chatBackstack = rememberNavBackStack(AppRoute.Chat)
     val dashboardBackstack = rememberNavBackStack(AppRoute.Dashboard)
     val cronsBackstack = rememberNavBackStack(AppRoute.Crons)
@@ -57,6 +64,12 @@ fun MainShell() {
     }
 
     Scaffold(
+        topBar = {
+            // Solo mostrar barra de estado cuando NO está Connected
+            if (connectionState !is ConnectionState.Connected) {
+                ConnectionStatusBar(connectionState = connectionState)
+            }
+        },
         bottomBar = {
             NavigationBar {
                 tabs.forEach { tab ->
@@ -119,9 +132,7 @@ fun MainShell() {
                         }
                     }
                     AppRoute.Settings -> NavEntry(route) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Settings")
-                        }
+                        SettingsScreen(connectionViewModel = connectionViewModel)
                     }
                     else -> NavEntry(route) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

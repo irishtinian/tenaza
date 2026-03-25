@@ -1,16 +1,31 @@
 package com.clawpilot.ui.pairing
 
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clawpilot.data.local.crypto.KeyStoreManager
 import com.clawpilot.data.local.prefs.CredentialStore
+import com.clawpilot.data.remote.ws.ConnectionState
+import com.clawpilot.data.remote.ws.GatewayFrame
+import com.clawpilot.data.remote.ws.RequestFrame
+import com.clawpilot.data.repository.ConnectionRepository
+import com.clawpilot.domain.model.GatewayCredentials
 import com.clawpilot.domain.model.PairingPayload
 import com.clawpilot.domain.model.PairingState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import java.net.URL
+import java.util.UUID
 
 /**
  * ViewModel que gestiona la máquina de estados del emparejamiento.
@@ -18,7 +33,8 @@ import java.net.URL
  */
 class PairingViewModel(
     private val credentialStore: CredentialStore,
-    private val keyStoreManager: KeyStoreManager
+    private val keyStoreManager: KeyStoreManager,
+    private val connectionRepository: ConnectionRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<PairingState>(PairingState.Unpaired)
@@ -33,7 +49,6 @@ class PairingViewModel(
 
     /**
      * Callback cuando el escáner QR detecta un payload válido.
-     * Verifica expiración y lanza el flujo de emparejamiento.
      */
     fun onQrDetected(payload: PairingPayload) {
         if (payload.isExpired()) {
@@ -47,7 +62,7 @@ class PairingViewModel(
     }
 
     /**
-     * Valida la URL ingresada manualmente y actualiza el estado.
+     * Valida la URL ingresada manualmente e intenta conexión directa.
      */
     fun onManualUrlSubmitted(url: String) {
         val trimmed = url.trim()
@@ -57,24 +72,83 @@ class PairingViewModel(
         }
         _manualUrlError.value = null
         _state.value = PairingState.Connecting(trimmed)
-        // TODO(plan-05): Wire actual connection via ConnectionRepository
+        val wsUrl = trimmed.replace("https://", "wss://").replace("http://", "ws://")
+        viewModelScope.launch {
+            initiatePairing(wsUrl, "")
+        }
     }
 
     fun onRetry() {
         _state.value = PairingState.Unpaired
     }
 
-    // --- Privado ---
+    // --- Pairing handshake ---
 
     private suspend fun initiatePairing(wsUrl: String, pairingToken: String) {
-        // Asegurar que existe el par ECDSA
-        if (!keyStoreManager.hasKeyPair()) {
-            keyStoreManager.generateEcdsaKeyPair()
+        try {
+            // 1. Asegurar par de claves ECDSA
+            if (!keyStoreManager.hasKeyPair()) {
+                keyStoreManager.generateEcdsaKeyPair()
+            }
+            val publicKey = keyStoreManager.getPublicKeyBase64()
+
+            // 2. Conectar al gateway con token de emparejamiento
+            connectionRepository.connectForPairing(wsUrl, pairingToken)
+            _state.value = PairingState.WaitingForApproval(wsUrl)
+
+            // 3. Esperar estado Connected
+            connectionRepository.connectionState
+                .filter { it is ConnectionState.Connected }
+                .first()
+
+            // 4. Enviar frame connect.challenge con clave pública
+            val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+            val challengeFrame = RequestFrame(
+                method = "connect.challenge",
+                params = buildJsonObject {
+                    put("publicKey", publicKey)
+                    put("deviceName", deviceName)
+                    put("deviceId", generateDeviceId())
+                }
+            )
+            connectionRepository.send(challengeFrame)
+
+            // 5. Esperar evento device.pair.resolved
+            val resolvedEvent = connectionRepository.frames
+                .filterIsInstance<GatewayFrame.Event>()
+                .filter { it.event == "device.pair.resolved" }
+                .first()
+
+            // 6. Extraer token permanente de la respuesta
+            val data = resolvedEvent.data?.jsonObject
+            val scopedToken = data?.get("token")?.jsonPrimitive?.content
+                ?: throw Exception("No token in pair response")
+            val scopes = data["scopes"]?.jsonArray?.map { it.jsonPrimitive.content }
+                ?: emptyList()
+
+            // 7. Almacenar credenciales cifradas
+            val credentials = GatewayCredentials(
+                gatewayUrl = wsUrl,
+                token = scopedToken,
+                deviceName = deviceName,
+                scopes = scopes
+            )
+            credentialStore.storeCredentials(credentials)
+
+            // 8. Reconectar con token permanente
+            connectionRepository.disconnect()
+            connectionRepository.connectWithStoredCredentials()
+
+            _state.value = PairingState.Paired(credentials)
+        } catch (e: Exception) {
+            _state.value = PairingState.Error(e.message ?: "Pairing failed")
         }
-        val pubKey = keyStoreManager.getPublicKeyBase64()
-        _state.value = PairingState.WaitingForApproval(wsUrl)
-        // TODO(plan-05): Use ConnectionRepository.connectForPairing(wsUrl, pairingToken)
-        //                and send connect.challenge frame with pubKey
+    }
+
+    private fun generateDeviceId(): String {
+        return UUID.nameUUIDFromBytes(
+            "${Build.MANUFACTURER}|${Build.MODEL}|${Build.FINGERPRINT}".toByteArray()
+        ).toString()
     }
 
     private fun isValidUrl(url: String): Boolean {
